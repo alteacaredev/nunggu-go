@@ -1,0 +1,3 @@
+package nunggu
+
+func Init() {}
