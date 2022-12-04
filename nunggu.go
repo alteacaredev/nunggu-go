@@ -145,6 +145,16 @@ func connectClient(cc clientConfig) {
 
 		handleMessage(cc.emitter, message)
 	}
+
+	c.SetPingHandler(func(string) error {
+		err := c.WriteMessage(websocket.PongMessage, []byte("keepalive"))
+
+		if err != nil {
+			cc.emitter.SafeEmit("ON_ERROR", err)
+		}
+
+		return nil
+	})
 }
 
 func handleMessage(emitter eventemitter.IEventEmitter, message []byte) {
