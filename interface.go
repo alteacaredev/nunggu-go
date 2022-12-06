@@ -6,6 +6,8 @@ import (
 	"github.com/jiyeyuran/go-eventemitter"
 )
 
+var EmitterIsReady bool = false
+
 type Nunggu struct {
 	Token                       string
 	TopicId                     string
@@ -13,6 +15,7 @@ type Nunggu struct {
 	MaxJob                      int
 	AcknowledgeTimeoutInSeconds int
 	EventEmitter                eventemitter.IEventEmitter
+	HaveConsumer                bool
 }
 
 type INunggu interface {
@@ -28,6 +31,8 @@ func Init(config Nunggu) INunggu {
 
 	// Please dont remove this timer. it caused callback not working anymore if you remove it!
 	time.AfterFunc(5*time.Second, func() {
+		EmitterIsReady = true
+
 		connectClient(clientConfig{
 			baseUrl:                     config.BaseUrl,
 			token:                       config.Token,

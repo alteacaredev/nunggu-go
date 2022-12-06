@@ -3,6 +3,7 @@ package nunggu
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jiyeyuran/go-eventemitter"
 )
+
+var ClientConnected bool = false
 
 type (
 	CallbackConsumer func(ConsumerData)
@@ -88,6 +91,26 @@ func connectClient(cc clientConfig) {
 				"status":  acknowledgeJob.Status,
 				"message": acknowledgeJob.Message,
 				"data":    acknowledgeJob.Data,
+			},
+		}
+
+		c.WriteJSON(payload)
+	})
+
+	cc.emitter.On("STATUS", func(status bool) {
+		statusStr := "connected"
+		if !status {
+			statusStr = "disconnected"
+		}
+
+		fmt.Printf("Nunggu Client %s with topic id \"%s\"", statusStr, cc.topicId)
+	})
+
+	cc.emitter.On("HAVE_CONSUMER", func(haveConsumer bool) {
+		payload := map[string]interface{}{
+			"type": "HAVE_CONSUMER",
+			"data": map[string]interface{}{
+				"have_consumer": haveConsumer,
 			},
 		}
 
@@ -173,34 +196,72 @@ func handleMessage(emitter eventemitter.IEventEmitter, message []byte) {
 		{
 			emitter.SafeEmit("ON_ERROR", errors.New(incomingMessage.Message))
 		}
+	case "STATUS":
+		{
+			ClientConnected = incomingMessage.Status
+
+			emitter.SafeEmit("STATUS", incomingMessage.Status)
+		}
 	}
 }
 
 func (i Nunggu) Consumer(callback CallbackConsumer) {
+	for {
+		if EmitterIsReady && ClientConnected {
+			break
+		}
+	}
+
+	i.EventEmitter.SafeEmit("HAVE_CONSUMER", true)
+
 	i.EventEmitter.On("CONSUMER", func(consumerData ConsumerData) {
 		callback(consumerData)
 	})
 }
 
 func (i Nunggu) OnError(callback CallbackOnError) {
+	for {
+		if EmitterIsReady {
+			break
+		}
+	}
+
 	i.EventEmitter.On("ON_ERROR", func(err error) {
 		callback(err)
 	})
 }
 
 func (i Nunggu) AcknowledgeJob(acknowledgeJob AcknowledgeJob) {
+	for {
+		if EmitterIsReady && ClientConnected {
+			break
+		}
+	}
+
 	if acknowledgeJob.JobId != "" {
 		i.EventEmitter.SafeEmit("ACKNOWLEDGE_JOB", acknowledgeJob)
 	}
 }
 
 func (i Nunggu) CreateJob(createJob CreateJob) {
+	for {
+		if EmitterIsReady && ClientConnected {
+			break
+		}
+	}
+
 	if createJob.Key != "" && !createJob.StartTime.IsZero() {
 		i.EventEmitter.SafeEmit("CREATE_JOB", createJob)
 	}
 }
 
 func (i Nunggu) DeleteJob(deleteJob DeleteJob) {
+	for {
+		if EmitterIsReady && ClientConnected {
+			break
+		}
+	}
+
 	if deleteJob.JobId != "" || deleteJob.Key != "" {
 		i.EventEmitter.SafeEmit("DELETE_JOB", deleteJob)
 	}
