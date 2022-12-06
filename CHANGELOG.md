@@ -1,3 +1,9 @@
+## v1.1.1 (2022-12-06)
+
+### Fix
+
+- move max job on consumer
+
 ## v1.1.0 (2022-12-06)
 
 ### Feat
